@@ -35,7 +35,7 @@ export default function LoginPage() {
                 type="email"
                 placeholder="you@noxit.net"
                 required
-                value={"noxit@noxit.net"}
+                value={""}
               />
             </div>
             <div className="flex flex-col gap-2">
@@ -45,7 +45,7 @@ export default function LoginPage() {
                 name="password"
                 type="password"
                 required
-                value={"a1b2c3d4e5"}
+                value={""}
               />
             </div>
             {state?.error && (
