@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache"
 import * as z from "zod"
 import { createClient } from "@/lib/supabase/server"
-import { sendWhatsAppText } from "@/lib/whatsapp"
+import { sendWhatsAppText, sendWhatsAppTemplate } from "@/lib/whatsapp"
 import type { Message } from "@/lib/types"
 
 export type ActionState = { error?: string; success?: boolean } | undefined
@@ -80,6 +80,90 @@ export async function sendWhatsAppMessage(
     return { error: e instanceof Error ? e.message : "Failed to send WhatsApp message." }
   }
 
+  const { error } = await supabase.from("messages").insert({
+    lead_id,
+    channel: "whatsapp",
+    direction: "outbound",
+    to_address: phone,
+    body,
+    whatsapp_message_id: messageId,
+    sent_at: new Date().toISOString(),
+    user_id: user.id,
+  })
+  if (error) return { error: error.message }
+
+  revalidatePath("/dashboard")
+  return { success: true }
+}
+
+const TemplateSchema = z.object({
+  lead_id: z.string().min(1, { error: "Missing lead id." }),
+  template_name: z.string().trim().min(1, { error: "Template name is required." }),
+  language: z.string().trim().min(1, { error: "Language is required." }),
+  params: z.string().default("[]"),
+})
+
+export async function sendWhatsAppTemplateMessage(
+  _prev: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  const parsed = TemplateSchema.safeParse({
+    lead_id: formData.get("lead_id"),
+    template_name: formData.get("template_name"),
+    language: formData.get("language"),
+    params: formData.get("params") ?? "[]",
+  })
+  if (!parsed.success) {
+    const fieldErrors = z.flattenError(parsed.error).fieldErrors as Record<string, string[] | undefined>
+    return {
+      error:
+        fieldErrors.template_name?.[0] ??
+        fieldErrors.language?.[0] ??
+        fieldErrors.lead_id?.[0] ??
+        "Invalid input.",
+    }
+  }
+
+  const { lead_id, template_name, language, params: paramsRaw } = parsed.data
+
+  let params: string[] = []
+  try {
+    const parsed = JSON.parse(paramsRaw)
+    if (Array.isArray(parsed)) params = parsed.filter((p) => typeof p === "string" && p.trim())
+  } catch {
+    return { error: "Invalid params format." }
+  }
+
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user) return { error: "Not authenticated." }
+
+  const { data: lead, error: leadError } = await supabase
+    .from("leads")
+    .select("primary_contact:contacts!primary_contact_id(phone)")
+    .eq("id", lead_id)
+    .single()
+  if (leadError) return { error: leadError.message }
+
+  const contact = lead?.primary_contact as
+    | { phone: string | null }
+    | { phone: string | null }[]
+    | null
+  const row = Array.isArray(contact) ? contact[0] : contact
+  const phone = row?.phone?.trim()
+  if (!phone) return { error: "Lead has no contact phone number." }
+
+  let messageId: string
+  try {
+    const result = await sendWhatsAppTemplate(phone, { name: template_name, language, params })
+    messageId = result.messageId
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Failed to send WhatsApp template." }
+  }
+
+  const body = `[Template: ${template_name}]${params.length ? " " + params.join(", ") : ""}`
   const { error } = await supabase.from("messages").insert({
     lead_id,
     channel: "whatsapp",

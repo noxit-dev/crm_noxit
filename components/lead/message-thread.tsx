@@ -1,17 +1,15 @@
-"use client"
+"use client";
 
-import { useActionState, useEffect, useRef } from "react"
-import { toast } from "sonner"
-import { SendIcon } from "lucide-react"
-import {
-  sendWhatsAppMessage,
-  type ActionState,
-} from "@/lib/actions/messages"
-import { createClient } from "@/lib/supabase/client"
-import type { Message } from "@/lib/types"
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
+import { useActionState, useEffect, useRef, useState } from "react";
+import { toast } from "sonner";
+import { SendIcon, LayoutTemplateIcon } from "lucide-react";
+import { sendWhatsAppMessage, type ActionState } from "@/lib/actions/messages";
+import { createClient } from "@/lib/supabase/client";
+import type { Message } from "@/lib/types";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { SendTemplateForm } from "@/components/lead/send-template-form";
 
 function formatWhen(iso: string) {
   return new Date(iso).toLocaleString(undefined, {
@@ -19,7 +17,7 @@ function formatWhen(iso: string) {
     day: "numeric",
     hour: "numeric",
     minute: "2-digit",
-  })
+  });
 }
 
 export function MessageThread({
@@ -28,32 +26,33 @@ export function MessageThread({
   refresh,
   canSend,
 }: {
-  leadId: string
-  messages: Message[]
-  refresh: () => void
-  canSend: boolean
+  leadId: string;
+  messages: Message[];
+  refresh: () => void;
+  canSend: boolean;
 }) {
+  const [showTemplate, setShowTemplate] = useState(false);
   const [state, formAction, pending] = useActionState<ActionState, FormData>(
     sendWhatsAppMessage,
-    undefined
-  )
-  const formRef = useRef<HTMLFormElement>(null)
+    undefined,
+  );
+  const formRef = useRef<HTMLFormElement>(null);
 
   useEffect(() => {
     if (state?.success) {
-      formRef.current?.reset()
-      refresh()
+      formRef.current?.reset();
+      refresh();
     } else if (state?.error) {
-      toast.error(state.error)
+      toast.error(state.error);
     }
-  }, [state, refresh])
+  }, [state, refresh]);
 
   // Live updates: refresh on any new message row for this lead (inbound or
   // outbound). RLS applies to authenticated postgres_changes; the messages
   // table is already in the supabase_realtime publication.
   useEffect(() => {
-    if (!leadId) return
-    const supabase = createClient()
+    if (!leadId) return;
+    const supabase = createClient();
     const channel = supabase
       .channel(`messages:${leadId}`)
       .on(
@@ -64,14 +63,14 @@ export function MessageThread({
           table: "messages",
           filter: `lead_id=eq.${leadId}`,
         },
-        () => refresh()
+        () => refresh(),
       )
-      .subscribe()
+      .subscribe();
 
     return () => {
-      supabase.removeChannel(channel)
-    }
-  }, [leadId, refresh])
+      supabase.removeChannel(channel);
+    };
+  }, [leadId, refresh]);
 
   return (
     <div className="flex flex-col gap-4">
@@ -82,7 +81,7 @@ export function MessageThread({
       ) : (
         <ul className="flex flex-col gap-2">
           {messages.map((msg) => {
-            const outbound = msg.direction === "outbound"
+            const outbound = msg.direction === "outbound";
             return (
               <li
                 key={msg.id}
@@ -104,30 +103,60 @@ export function MessageThread({
                   <span>{formatWhen(msg.sent_at ?? msg.created_at)}</span>
                 </div>
               </li>
-            )
+            );
           })}
         </ul>
       )}
 
       {canSend ? (
-        <form ref={formRef} action={formAction} className="flex items-center gap-2">
-          <input type="hidden" name="lead_id" value={leadId} />
-          <Input
-            name="body"
-            required
-            placeholder="Type a WhatsApp message…"
-            autoComplete="off"
-          />
-          <Button type="submit" size="icon" className="shrink-0" disabled={pending}>
-            <SendIcon className="size-4" />
-            <span className="sr-only">Send WhatsApp message</span>
-          </Button>
-        </form>
+        <div className="flex flex-col gap-2">
+          {showTemplate ? (
+            <SendTemplateForm
+              leadId={leadId}
+              onSuccess={() => { setShowTemplate(false); refresh(); }}
+              onCancel={() => setShowTemplate(false)}
+            />
+          ) : (
+            <form
+              ref={formRef}
+              action={formAction}
+              className="flex items-center gap-2"
+            >
+              <input type="hidden" name="lead_id" value={leadId} />
+              <Input
+                name="body"
+                required
+                placeholder="Type a WhatsApp message…"
+                autoComplete="off"
+              />
+              <Button
+                type="submit"
+                size="icon"
+                className="shrink-0"
+                disabled={pending}
+              >
+                <SendIcon className="size-4" />
+                <span className="sr-only">Send WhatsApp message</span>
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                className="shrink-0"
+                onClick={() => setShowTemplate(true)}
+                title="Send template"
+              >
+                <LayoutTemplateIcon className="size-4" />
+                <span className="sr-only">Send template</span>
+              </Button>
+            </form>
+          )}
+        </div>
       ) : (
         <p className="text-muted-foreground text-center text-xs">
           Add a primary contact with a phone number to send WhatsApp messages.
         </p>
       )}
     </div>
-  )
+  );
 }

@@ -55,9 +55,36 @@ export async function sendWhatsAppText(
   return postMessage({ to, type: "text", text: { body } })
 }
 
-// TODO(M6): template-message support for first-contact outside the 24h window.
-// Meta requires a pre-approved template name + language + components params, e.g.:
-//   export async function sendWhatsAppTemplate(
-//     to: string,
-//     template: { name: string; language: string; params?: string[] }
-//   ): Promise<WhatsAppSendResult>
+export interface WhatsAppTemplate {
+  name: string
+  language: string
+  params?: string[]
+}
+
+// Template message for first-contact outside the 24h window.
+// Meta requires a pre-approved template name + language code (e.g. "es", "en_US").
+// Positional params map to {{1}}, {{2}}, … body variables in the template.
+export async function sendWhatsAppTemplate(
+  to: string,
+  template: WhatsAppTemplate
+): Promise<WhatsAppSendResult> {
+  const components =
+    template.params && template.params.length > 0
+      ? [
+          {
+            type: "body",
+            parameters: template.params.map((text) => ({ type: "text", text })),
+          },
+        ]
+      : undefined
+
+  return postMessage({
+    to,
+    type: "template",
+    template: {
+      name: template.name,
+      language: { code: template.language },
+      ...(components ? { components } : {}),
+    },
+  })
+}

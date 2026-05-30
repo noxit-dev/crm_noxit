@@ -1,69 +1,69 @@
-"use client"
+"use client";
 
-import { useCallback, useEffect, useState, useTransition } from "react"
-import { listTasks } from "@/lib/actions/tasks"
-import { listNotes } from "@/lib/actions/notes"
-import { listMessages } from "@/lib/actions/messages"
+import { useCallback, useEffect, useState, useTransition } from "react";
+import { listTasks } from "@/lib/actions/tasks";
+import { listNotes } from "@/lib/actions/notes";
+import { listMessages } from "@/lib/actions/messages";
 import {
   LEAD_STAGE_LABELS,
   type LeadWithRelations,
   type Message,
   type Note,
   type Task,
-} from "@/lib/types"
-import { Skeleton } from "@/components/ui/skeleton"
+} from "@/lib/types";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Sheet,
   SheetContent,
   SheetDescription,
   SheetHeader,
   SheetTitle,
-} from "@/components/ui/sheet"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { TaskList } from "@/components/lead/task-list"
-import { NoteList } from "@/components/lead/note-list"
-import { MessageThread } from "@/components/lead/message-thread"
+} from "@/components/ui/sheet";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { TaskList } from "@/components/lead/task-list";
+import { NoteList } from "@/components/lead/note-list";
+import { MessageThread } from "@/components/lead/message-thread";
 
 export function LeadDetail({
   lead,
   open,
   onOpenChange,
 }: {
-  lead: LeadWithRelations | null
-  open: boolean
-  onOpenChange: (open: boolean) => void
+  lead: LeadWithRelations | null;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
 }) {
-  const [tasks, setTasks] = useState<Task[]>([])
-  const [notes, setNotes] = useState<Note[]>([])
-  const [messages, setMessages] = useState<Message[]>([])
-  const [loaded, setLoaded] = useState(false)
-  const [isLoading, startTransition] = useTransition()
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [notes, setNotes] = useState<Note[]>([]);
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [loaded, setLoaded] = useState(false);
+  const [isLoading, startTransition] = useTransition();
 
-  const leadId = lead?.id
+  const leadId = lead?.id;
 
   const refresh = useCallback(() => {
-    if (!leadId) return
+    if (!leadId) return;
     startTransition(async () => {
       const [t, n, m] = await Promise.all([
         listTasks(leadId),
         listNotes(leadId),
         listMessages(leadId),
-      ])
-      setTasks(t)
-      setNotes(n)
-      setMessages(m)
-      setLoaded(true)
-    })
-  }, [leadId])
+      ]);
+      setTasks(t);
+      setNotes(n);
+      setMessages(m);
+      setLoaded(true);
+    });
+  }, [leadId]);
 
   // Lazy-load when the slide-over opens for a lead.
   useEffect(() => {
-    if (open && leadId) refresh()
-  }, [open, leadId, refresh])
+    if (open && leadId) refresh();
+  }, [open, leadId, refresh]);
 
   const subtitle = [lead?.company?.name, lead && LEAD_STAGE_LABELS[lead.stage]]
     .filter(Boolean)
-    .join(" · ")
+    .join(" · ");
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -106,5 +106,5 @@ export function LeadDetail({
         </div>
       </SheetContent>
     </Sheet>
-  )
+  );
 }
