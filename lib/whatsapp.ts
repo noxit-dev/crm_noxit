@@ -59,24 +59,34 @@ export interface WhatsAppTemplate {
   name: string
   language: string
   params?: string[]
+  buttonSuffix?: string
 }
 
 // Template message for first-contact outside the 24h window.
 // Meta requires a pre-approved template name + language code (e.g. "es", "en_US").
 // Positional params map to {{1}}, {{2}}, … body variables in the template.
+// buttonSuffix is the dynamic URL suffix for templates with a URL button component.
 export async function sendWhatsAppTemplate(
   to: string,
   template: WhatsAppTemplate
 ): Promise<WhatsAppSendResult> {
-  const components =
-    template.params && template.params.length > 0
-      ? [
-          {
-            type: "body",
-            parameters: template.params.map((text) => ({ type: "text", text })),
-          },
-        ]
-      : undefined
+  const components: Record<string, unknown>[] = []
+
+  if (template.params && template.params.length > 0) {
+    components.push({
+      type: "body",
+      parameters: template.params.map((text) => ({ type: "text", text })),
+    })
+  }
+
+  if (template.buttonSuffix) {
+    components.push({
+      type: "button",
+      sub_type: "url",
+      index: "0",
+      parameters: [{ type: "text", text: template.buttonSuffix }],
+    })
+  }
 
   return postMessage({
     to,
@@ -84,7 +94,7 @@ export async function sendWhatsAppTemplate(
     template: {
       name: template.name,
       language: { code: template.language },
-      ...(components ? { components } : {}),
+      ...(components.length > 0 ? { components } : {}),
     },
   })
 }

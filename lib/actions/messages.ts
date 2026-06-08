@@ -101,6 +101,7 @@ const TemplateSchema = z.object({
   template_name: z.string().trim().min(1, { error: "Template name is required." }),
   language: z.string().trim().min(1, { error: "Language is required." }),
   params: z.string().default("[]"),
+  button_suffix: z.string().default(""),
 })
 
 export async function sendWhatsAppTemplateMessage(
@@ -112,6 +113,7 @@ export async function sendWhatsAppTemplateMessage(
     template_name: formData.get("template_name"),
     language: formData.get("language"),
     params: formData.get("params") ?? "[]",
+    button_suffix: formData.get("button_suffix") ?? "",
   })
   if (!parsed.success) {
     const fieldErrors = z.flattenError(parsed.error).fieldErrors as Record<string, string[] | undefined>
@@ -124,7 +126,7 @@ export async function sendWhatsAppTemplateMessage(
     }
   }
 
-  const { lead_id, template_name, language, params: paramsRaw } = parsed.data
+  const { lead_id, template_name, language, params: paramsRaw, button_suffix } = parsed.data
 
   let params: string[] = []
   try {
@@ -157,7 +159,12 @@ export async function sendWhatsAppTemplateMessage(
 
   let messageId: string
   try {
-    const result = await sendWhatsAppTemplate(phone, { name: template_name, language, params })
+    const result = await sendWhatsAppTemplate(phone, {
+      name: template_name,
+      language,
+      params,
+      buttonSuffix: button_suffix || undefined,
+    })
     messageId = result.messageId
   } catch (e) {
     return { error: e instanceof Error ? e.message : "Failed to send WhatsApp template." }

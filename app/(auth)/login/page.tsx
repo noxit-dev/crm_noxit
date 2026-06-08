@@ -35,18 +35,11 @@ export default function LoginPage() {
                 type="email"
                 placeholder="you@noxit.net"
                 required
-                value={""}
               />
             </div>
             <div className="flex flex-col gap-2">
               <Label htmlFor="password">Password</Label>
-              <Input
-                id="password"
-                name="password"
-                type="password"
-                required
-                value={""}
-              />
+              <Input id="password" name="password" type="password" required />
             </div>
             {state?.error && (
               <p className="text-sm text-destructive">{state.error}</p>
